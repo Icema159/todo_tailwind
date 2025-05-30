@@ -3,8 +3,9 @@ import { FaPlus } from 'react-icons/fa';
 import TodoItem from './TodoItem';
 import { CSSTransition, TransitionGroup } from 'react-transition-group';
 
-function TodoList() {
+const TodoList = () => {
   const [text, setText] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [tasks, setTasks] = useState(() => {
     const stored = localStorage.getItem('tasks');
     return stored ? JSON.parse(stored) : [];
@@ -16,49 +17,64 @@ function TodoList() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  function addTask(text) {
-  if (text.trim() === '') return;
-  const newTask = {
-    id: Date.now(),
-    text,
-    day: selectedDay, // ← čia svarbiausia
-    completed: false
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const todayIndex = new Date().getDay(); // 0 (Sun) – 6 (Sat)
+  const normalizedToday = todayIndex === 0 ? 6 : todayIndex - 1; // Paverčiam kad Mon = 0
+  const [selectedDay, setSelectedDay] = useState(daysOfWeek[normalizedToday]);
+const visibleTasks = showAll
+  ? tasks
+  : tasks.filter(task => task.day === selectedDay);
+
+  const addTask = (text) => {
+    if (text.trim() === '') return;
+    const newTask = {
+      id: Date.now(),
+      text,
+      day: selectedDay,
+      completed: false
+    };
+    setTasks([...tasks, newTask]);
+    setText('');
   };
-  setTasks([...tasks, newTask]);
-  setText('');
-}
 
-  function deleteTask(id) {
+  const deleteTask = (id) => {
     setTasks(tasks.filter(task => task.id !== id));
-  }
+  };
 
-  function toggleCompleted(id) {
+  const toggleCompleted = (id) => {
     setTasks(tasks.map(task =>
       task.id === id ? { ...task, completed: !task.completed } : task
     ));
-  }
+  };
 
-  function editTask(id, newText) {
+  const editTask = (id, newText) => {
     setTasks(tasks.map(task =>
       task.id === id ? { ...task, text: newText } : task
     ));
+  };
+
+const toggleShowAll = () => {
+  if (!showAll) {
+    // Įjungiame “Show all” → nuimam pasirinkimą
+    setSelectedDay(null);
+  } else {
+    // Grįžtam į “Show selected day” → grąžinam šiandieną
+    setSelectedDay(daysOfWeek[normalizedToday]);
   }
-const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const todayIndex = new Date().getDay(); // 0 (Sun) – 6 (Sat)
-const normalizedToday = todayIndex === 0 ? 6 : todayIndex - 1; // Paverčiam kad Mon = 0
-const [selectedDay, setSelectedDay] = useState(daysOfWeek[normalizedToday]);  
-return (
-  <div className="w-full max-w-md mx-auto mt-10">
+  setShowAll(!showAll);
+};
 
-    {/* Viršutinė dalis: visa kortelė su fonu */}
-    <div className="bg-zinc-900 text-white p-6 rounded-xl shadow-lg">
-
-      {/* Savaitės dienos */}
-      <div className="grid grid-cols-7 gap-2 mb-4">
-        {daysOfWeek.map((day) => (
+  return (
+    <div className="w-full max-w-md mx-auto mt-10">
+      <div className="bg-zinc-900 text-white p-6 rounded-xl shadow-lg">
+        <div className="grid grid-cols-7 gap-2 mb-4">
+          {daysOfWeek.map((day) => (
   <button
     key={day}
-    onClick={() => setSelectedDay(day)}
+    onClick={() => {
+      setSelectedDay(day);
+      setShowAll(false); // kai pasirenkam dieną – išjungiam “show all”
+    }}
     className={`p-2 text-sm text-center rounded-lg border transition
       ${day === selectedDay
         ? "bg-red-500 text-black font-bold border-red-400 shadow"
@@ -68,61 +84,67 @@ return (
     {day}
   </button>
 ))}
+        </div>
+<div className="mb-4 text-center">
+  <button
+  onClick={toggleShowAll}
+  className="mt-4 px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-black font-semibold shadow"
+>
+  {showAll ? "Show selected day only" : "Show all"}
+</button>
+</div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                addTask(text);
+              }
+            }}
+            placeholder="Enter a task..."
+            className="flex-1 p-2 rounded bg-zinc-800 text-white placeholder-neutral-400 outline-none"
+          />
+          <button
+            onClick={() => addTask(text)}
+            aria-label="Add task"
+            className="bg-red-500 text-black px-4 py-2 rounded hover:bg-red-600"
+          >
+            <FaPlus />
+          </button>
+        </div>
       </div>
 
-      {/* Įvedimo laukas */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              addTask(text);
+      <div className="mt-6 space-y-3">
+        <TransitionGroup>
+          {visibleTasks.map(task => {
+            if (!nodeRefs.current[task.id]) {
+              nodeRefs.current[task.id] = React.createRef();
             }
-          }}
-          placeholder="Įvesk užduotį..."
-          className="flex-1 p-2 rounded bg-zinc-800 text-white placeholder-neutral-400 outline-none"
-        />
-        <button
-          onClick={() => addTask(text)}
-          aria-label="Pridėti užduotį"
-          className="bg-red-500 text-black px-4 py-2 rounded hover:bg-red-600"
-        >
-          <FaPlus />
-        </button>
+
+            return (
+              <CSSTransition
+                key={task.id}
+                timeout={300}
+                classNames="fade"
+                nodeRef={nodeRefs.current[task.id]}
+              >
+                <div ref={nodeRefs.current[task.id]}>
+                  <TodoItem
+                    task={task}
+                    deleteTask={deleteTask}
+                    toggleCompleted={toggleCompleted}
+                    editTask={editTask}
+                  />
+                </div>
+              </CSSTransition>
+            );
+          })}
+        </TransitionGroup>
       </div>
     </div>
+  );
+};
 
-    {/* Užduočių sąrašas (atskirai po visa kortele) */}
-    <div className="mt-6 space-y-3">
-      <TransitionGroup>
-        {tasks.map(task => {
-          if (!nodeRefs.current[task.id]) {
-            nodeRefs.current[task.id] = React.createRef();
-          }
-
-          return (
-            <CSSTransition
-              key={task.id}
-              timeout={300}
-              classNames="fade"
-              nodeRef={nodeRefs.current[task.id]}
-            >
-              <div ref={nodeRefs.current[task.id]}>
-                <TodoItem
-                  task={task}
-                  deleteTask={deleteTask}
-                  toggleCompleted={toggleCompleted}
-                  editTask={editTask}
-                />
-              </div>
-            </CSSTransition>
-          );
-        })}
-      </TransitionGroup>
-    </div>
-  </div>
-);
-}
 export default TodoList;
