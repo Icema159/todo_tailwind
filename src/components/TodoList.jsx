@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaPlus } from 'react-icons/fa';
 import TodoItem from './TodoItem';
 import { CSSTransition, TransitionGroup } from 'react-transition-group';
+import { useTranslation } from 'react-i18next';
 
 const TodoList = () => {
+  const { t, i18n } = useTranslation();
+
   const [text, setText] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [tasks, setTasks] = useState(() => {
@@ -17,13 +20,14 @@ const TodoList = () => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const todayIndex = new Date().getDay(); // 0 (Sun) – 6 (Sat)
-  const normalizedToday = todayIndex === 0 ? 6 : todayIndex - 1; // Paverčiam kad Mon = 0
+  const daysOfWeekKeys = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const daysOfWeek = daysOfWeekKeys.map((day) => t(day));
+  const todayIndex = new Date().getDay();
+  const normalizedToday = todayIndex === 0 ? 6 : todayIndex - 1;
   const [selectedDay, setSelectedDay] = useState(daysOfWeek[normalizedToday]);
-const visibleTasks = showAll
-  ? tasks
-  : tasks.filter(task => task.day === selectedDay);
+  const visibleTasks = showAll
+    ? tasks
+    : tasks.filter(task => task.day === selectedDay);
 
   const addTask = (text) => {
     if (text.trim() === '') return;
@@ -53,46 +57,61 @@ const visibleTasks = showAll
     ));
   };
 
-const toggleShowAll = () => {
-  if (!showAll) {
-    // Įjungiame “Show all” → nuimam pasirinkimą
-    setSelectedDay(null);
-  } else {
-    // Grįžtam į “Show selected day” → grąžinam šiandieną
-    setSelectedDay(daysOfWeek[normalizedToday]);
-  }
-  setShowAll(!showAll);
-};
+  const toggleShowAll = () => {
+    if (!showAll) {
+      setSelectedDay(null);
+    } else {
+      setSelectedDay(daysOfWeek[normalizedToday]);
+    }
+    setShowAll(!showAll);
+  };
+
+  const toggleLanguage = () => {
+    i18n.changeLanguage(i18n.resolvedLanguage === 'en' ? 'lt' : 'en');
+  };
 
   return (
     <div className="w-full max-w-md mx-auto mt-10">
       <div className="bg-zinc-900 text-white p-6 rounded-xl shadow-lg">
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {daysOfWeek.map((day) => (
-  <button
-    key={day}
-    onClick={() => {
-      setSelectedDay(day);
-      setShowAll(false); // kai pasirenkam dieną – išjungiam “show all”
-    }}
-    className={`p-2 text-sm text-center rounded-lg border transition
-      ${day === selectedDay
-        ? "bg-red-500 text-black font-bold border-red-400 shadow"
-        : "bg-zinc-800 text-neutral-400 border-zinc-700 hover:border-zinc-500"}
-    `}
-  >
-    {day}
-  </button>
-))}
-        </div>
-<div className="mb-4 text-center">
-  <button
-  onClick={toggleShowAll}
-  className="mt-4 px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-black font-semibold shadow"
->
-  {showAll ? "Show selected day only" : "Show all"}
-</button>
+        <div className="flex justify-between items-center mb-4">
+          <div className="grid grid-cols-7 gap-2">
+  {daysOfWeek.map((label, index) => {
+    const dayKey = daysOfWeekKeys[index];
+    return (
+      <button
+        key={dayKey}
+        onClick={() => {
+          setSelectedDay(dayKey);
+          setShowAll(false);
+        }}
+        className={`p-2 text-sm text-center rounded-lg border transition
+          ${dayKey === selectedDay
+            ? "bg-red-500 text-black font-bold border-red-400 shadow"
+            : "bg-zinc-800 text-neutral-400 border-zinc-700 hover:border-zinc-500"}
+        `}
+      >
+        {label}
+      </button>
+    );
+  })}
 </div>
+          <button
+            onClick={toggleLanguage}
+            className="ml-4 px-3 py-1 rounded border text-sm hover:bg-zinc-800 border-zinc-600"
+          >
+            {i18n.resolvedLanguage === 'en' ? 'LT' : 'EN'}
+          </button>
+        </div>
+
+        <div className="mb-4 text-center">
+          <button
+            onClick={toggleShowAll}
+            className="mt-4 px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-black font-semibold shadow"
+          >
+            {showAll ? t('Show selected day only') : t('Show all')}
+          </button>
+        </div>
+
         <div className="flex gap-2">
           <input
             type="text"
@@ -103,12 +122,12 @@ const toggleShowAll = () => {
                 addTask(text);
               }
             }}
-            placeholder="Enter a task..."
+            placeholder={t('Enter a task')}
             className="flex-1 p-2 rounded bg-zinc-800 text-white placeholder-neutral-400 outline-none"
           />
           <button
             onClick={() => addTask(text)}
-            aria-label="Add task"
+            aria-label={t('Add task')}
             className="bg-red-500 text-black px-4 py-2 rounded hover:bg-red-600"
           >
             <FaPlus />
